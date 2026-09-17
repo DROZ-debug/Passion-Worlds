@@ -13,7 +13,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
-# Подключаем ИИ и обязательно "представляемся" (OpenRouter этого требует для бесплатных моделей)
+# Подключаем ИИ и обязательно "представляемся"
 llm_client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
@@ -182,7 +182,8 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_chat_action(chat_id=user_id, action='typing')
 
-    model_name = "undi95/toppy-m-7b:free" if nsfw_mode else "google/gemma-2-9b-it:free"
+    # ИСПОЛЬЗУЕМ СТАБИЛЬНЫЕ МОДЕЛИ
+    model_name = "gryphe/mythomax-l2-13b:free" if nsfw_mode else "meta-llama/llama-3.1-8b-instruct:free"
 
     try:
         response = await llm_client.chat.completions.create(
@@ -203,7 +204,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         error_text = str(e)
         print(f"Ошибка ИИ: {error_text}")
-        # Теперь бот пришлет саму ошибку прямо в чат!
         await update.message.reply_text(f"⚠️ <b>Техническая ошибка (скинь её разработчику):</b>\n<code>{error_text}</code>", parse_mode='HTML')
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -246,5 +246,5 @@ if __name__ == "__main__":
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
     
-    print("🚀 Бот Passion-Worlds запущен (Патч 1.1)!")
+    print("🚀 Бот Passion-Worlds запущен (Патч 1.2)!")
     app.run_polling()
