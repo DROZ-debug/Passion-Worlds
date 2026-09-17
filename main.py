@@ -13,9 +13,14 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 DATABASE_URL = os.getenv("DATABASE_URL")
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 
+# Подключаем ИИ и обязательно "представляемся" (OpenRouter этого требует для бесплатных моделей)
 llm_client = AsyncOpenAI(
     base_url="https://openrouter.ai/api/v1",
     api_key=OPENROUTER_API_KEY,
+    default_headers={
+        "HTTP-Referer": "https://github.com/DROZ-debug/Passion-Worlds",
+        "X-Title": "Passion-Worlds Bot"
+    }
 )
 
 # --- БАЗА ДАННЫХ ---
@@ -25,7 +30,6 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     c = conn.cursor()
-    # Создаем или обновляем таблицу пользователей
     c.execute('''
         CREATE TABLE IF NOT EXISTS users (
             user_id BIGINT PRIMARY KEY,
@@ -33,11 +37,9 @@ def init_db():
             dialog_history TEXT DEFAULT '[]'
         )
     ''')
-    # Добавляем новые колонки для Патча 1 (если их еще нет)
     c.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS energy INT DEFAULT 20")
     c.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS nsfw_mode BOOLEAN DEFAULT FALSE")
     
-    # Таблица персонажей
     c.execute('''
         CREATE TABLE IF NOT EXISTS characters (
             id SERIAL PRIMARY KEY,
@@ -125,7 +127,7 @@ async def toggle_nsfw(message, user_id):
             c.execute("UPDATE users SET nsfw_mode = %s WHERE user_id = %s", (new_mode, user_id))
         conn.commit()
         
-    status = "ВКЛЮЧЕН 🔞. Теперь девушки готовы к откровенным темам." if new_mode else "ВЫКЛЮЧЕН 🟢. Диалоги снова безопасные и милые."
+    status = "ВКЛЮЧЕН 🔞" if new_mode else "ВЫКЛЮЧЕН 🟢"
     await message.reply_text(f"Режим NSFW {status}")
 
 async def reset_memory(message, user_id):
@@ -151,7 +153,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
     
-    # Обработка кнопок нижнего меню
     if text == "🌌 Каталог миров":
         return await show_catalog(update.message)
     elif text == "👤 Мой профиль":
@@ -161,7 +162,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🛑 Сбросить память":
         return await reset_memory(update.message, user_id)
 
-    # Обработка обычного диалога
     with get_db_connection() as conn:
         with conn.cursor() as c:
             c.execute("SELECT character_id, dialog_history, energy, nsfw_mode FROM users WHERE user_id = %s", (user_id,))
@@ -173,7 +173,7 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     char_id, history_json, energy, nsfw_mode = user_data
     
     if energy <= 0:
-        return await update.message.reply_text("⚡️ Энергия закончилась! (Скоро здесь будет кнопка пополнения)")
+        return await update.message.reply_text("⚡️ Энергия закончилась!")
 
     history = json.loads(history_json)
     history.append({"role": "user", "content": text})
@@ -182,8 +182,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await context.bot.send_chat_action(chat_id=user_id, action='typing')
 
-    # Выбор модели в зависимости от NSFW тумблера
-    # Для NSFW берем Toppy-M (отлично подходит для Roleplay без цензуры)
     model_name = "undi95/toppy-m-7b:free" if nsfw_mode else "google/gemma-2-9b-it:free"
 
     try:
@@ -194,7 +192,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ai_reply = response.choices[0].message.content
         history.append({"role": "assistant", "content": ai_reply})
         
-        # Минусуем энергию и сохраняем диалог
         with get_db_connection() as conn:
             with conn.cursor() as c:
                 c.execute("UPDATE users SET dialog_history = %s, energy = energy - 1 WHERE user_id = %s", 
@@ -204,8 +201,10 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(ai_reply)
 
     except Exception as e:
-        print(f"Ошибка ИИ: {e}")
-        await update.message.reply_text("Ой, я немного задумалась... Повтори, пожалуйста 🥺")
+        error_text = str(e)
+        print(f"Ошибка ИИ: {error_text}")
+        # Теперь бот пришлет саму ошибку прямо в чат!
+        await update.message.reply_text(f"⚠️ <b>Техническая ошибка (скинь её разработчику):</b>\n<code>{error_text}</code>", parse_mode='HTML')
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -247,5 +246,5 @@ if __name__ == "__main__":
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
     
-    print("🚀 Бот Passion-Worlds запущен (Патч 1)!")
+    print("🚀 Бот Passion-Worlds запущен (Патч 1.1)!")
     app.run_polling()
