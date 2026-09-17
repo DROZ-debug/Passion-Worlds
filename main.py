@@ -22,13 +22,12 @@ llm_client = AsyncOpenAI(
     }
 )
 
-# СПИСОК ЗАПАСНЫХ МОДЕЛЕЙ (Бот будет пробовать их по очереди, пока не получит ответ)
+# СПИСОК ЗАПАСНЫХ МОДЕЛЕЙ (Самые стабильные бесплатные шлюзы на данный момент)
 FREE_MODELS = [
-    "gryphe/mythomax-l2-13b:free",
-    "huggingfaceh4/zephyr-7b-beta:free",
-    "meta-llama/llama-3-8b-instruct:free",
-    "openchat/openchat-7b:free",
-    "qwen/qwen-2-7b-instruct:free"
+    "google/gemma-2-9b-it:free",
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "microsoft/phi-3-medium-128k-instruct:free",
+    "meta-llama/llama-3.1-8b-instruct:free"
 ]
 
 # --- БАЗА ДАННЫХ ---
@@ -221,7 +220,6 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.commit()
         await update.message.reply_text(ai_reply)
     else:
-        # Если упали вообще ВСЕ 5 моделей (что бывает раз в год)
         await update.message.reply_text("Упс! Сейчас глобальный сбой на серверах ИИ. Дай мне пару минут и напиши снова 🥺")
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -264,5 +262,5 @@ if __name__ == "__main__":
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
     
-    print("🚀 Бот Passion-Worlds запущен (Патч 1.5 - Smart Routing)!")
+    print("🚀 Бот Passion-Worlds запущен (Патч 1.6 - Stable Models)!")
     app.run_polling()
