@@ -20,11 +20,11 @@ llm_client = AsyncOpenAI(
     api_key=GROQ_API_KEY,
 )
 
-# СПИСОК БЕСПЛАТНЫХ МОДЕЛЕЙ GROQ
+# 🔥 ИСПРАВЛЕНО: ТОЛЬКО АКТУАЛЬНЫЕ МОДЕЛИ GROQ 🔥
 FREE_MODELS = [
     "llama-3.1-8b-instant",
-    "llama3-8b-8192",
-    "mixtral-8x7b-32768"
+    "llama-3.1-70b-versatile",
+    "gemma2-9b-it"
 ]
 
 # --- БАЗА ДАННЫХ ---
@@ -217,14 +217,11 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             conn.commit()
         await update.message.reply_text(ai_reply)
     else:
-        # Выводим реальную ошибку, если запрос упал
-        if user_id in ADMIN_IDS:
-            await update.message.reply_text(
-                f"Упс! Сбой подключения к Groq.\n\n🛠 <b>Отчет об ошибке:</b>\n<code>{last_error}</code>\n\nПроверь API-ключ в Render!",
-                parse_mode='HTML'
-            )
-        else:
-            await update.message.reply_text("Упс! Сейчас глобальный сбой на серверах ИИ. Дай мне пару минут и напиши снова 🥺")
+        # 🔥 Теперь ошибка покажется АБСОЛЮТНО ВСЕМ пользователям 🔥
+        await update.message.reply_text(
+            f"Упс! Сбой подключения к Groq.\n\n🛠 <b>Отчет об ошибке:</b>\n<code>{last_error}</code>\n\nПришли этот текст разработчику!",
+            parse_mode='HTML'
+        )
 
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -266,5 +263,5 @@ if __name__ == "__main__":
     app.add_handler(CallbackQueryHandler(callback_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, message_handler))
     
-    print("🚀 Бот Passion-Worlds запущен (Groq Models API)!")
+    print("🚀 Бот Passion-Worlds запущен (Патч 0.6 - Groq Valid Models)!")
     app.run_polling()
